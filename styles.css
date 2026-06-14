@@ -286,7 +286,10 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 500; line-height: 1.
 }
 .review .quote-mark { font-family: var(--font-display); font-size: 3.4rem; line-height: 0.6; color: var(--accent); opacity: 0.45; }
 .review p { color: var(--ink-soft); margin: 0.4em 0 1.4em; font-style: italic; }
-.review-author { display: flex; align-items: center; gap: 14px; margin-top: auto; }
+.review-author { display: flex; align-items: flex-start; gap: 14px; margin-top: auto; }
+.review-link { display: inline-block; font-size: 0.82rem; font-weight: 600; color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid var(--accent); margin-top: 7px; }
+.review-link:hover { color: var(--accent); }
+.review-addr { font-size: 0.78rem; color: var(--ink-soft); margin-top: 6px; line-height: 1.35; }
 .review-avatar {
   width: 52px; height: 52px; border-radius: 50%;
   flex-shrink: 0; overflow: hidden;
