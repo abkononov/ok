@@ -1,50 +1,51 @@
 /**
  * Facebook Leads (Instant Form) -> Google Sheets -> Gmail forwarder.
  *
- * Setup:
- * 1. Open the Google Sheet where Facebook writes leads.
- * 2. Extensions -> Apps Script, replace Code.gs with this file.
- * 3. Edit CONFIG below (sheet/tab name, column headers, client mapping).
- * 4. Run checkForNewLeads once manually to grant Gmail/Sheets permission
- *    (grant access using the anton.kon.47@gmail.com account).
- * 5. Triggers (clock icon) -> Add trigger -> checkForNewLeads ->
+ * Настроено под таблицу с колонками:
+ * id, created_time, ad_id, ad_name, adset_id, adset_name, campaign_id,
+ * campaign_name, form_id, form_name, is_organic, platform,
+ * vollständiger_name, telefonnummer, lead_status
+ *
+ * Установка:
+ * 1. Откройте вашу таблицу с лидами.
+ * 2. Расширения -> Apps Script, вставьте этот код вместо стандартного.
+ * 3. Запустите checkForNewLeads вручную один раз (кнопка Run) и выдайте
+ *    доступ к Gmail/Sheets под аккаунтом anton.kon.47@gmail.com.
+ * 4. Иконка часов (Triggers) -> Add trigger -> checkForNewLeads ->
  *    Time-driven -> Minutes timer -> Every 10 minutes.
  */
 
 var CONFIG = {
-  SHEET_NAME: 'Leads', // tab name that holds the Facebook leads
+  // Имя листа с лидами. Если оставить пустым '' — берётся первый лист.
+  SHEET_NAME: '',
 
-  // Header names exactly as they appear in row 1 of the sheet.
+  // Заголовки колонок ровно как в первой строке таблицы.
   COLUMNS: {
-    fullName: 'full_name',
-    email: 'email',
-    phone: 'phone_number',
-    formName: 'form_name',      // used to pick the client to forward to
+    fullName: 'vollständiger_name',
+    phone: 'telefonnummer',
+    formName: 'form_name',
+    campaignName: 'campaign_name',
+    adName: 'ad_name',
     createdTime: 'created_time'
   },
 
-  // Column the script uses to avoid sending the same lead twice.
-  // Created automatically if it doesn't exist yet.
+  // Куда пересылать все заявки.
+  RECIPIENT: 'Proteam.drivekoeln@gmail.com',
+
+  // Колонка-отметка, чтобы не отправлять один лид дважды.
+  // Создаётся автоматически, если её ещё нет.
   STATUS_COLUMN: 'Отправлено',
 
-  // form_name (or campaign_name) -> client email(s).
-  // Add one entry per client/form. Multiple recipients: comma-separated string.
-  CLIENT_MAP: {
-    // 'Название формы в Facebook': 'client@example.com',
-  },
-
-  // Used when a lead's form isn't found in CLIENT_MAP, so nothing gets lost.
-  FALLBACK_EMAIL: 'anton.kon.47@gmail.com',
-
-  SUBJECT_PREFIX: 'Новый лид: '
+  SUBJECT_PREFIX: 'Новая заявка: '
 };
 
 function checkForNewLeads() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) throw new Error('Sheet "' + CONFIG.SHEET_NAME + '" not found');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = CONFIG.SHEET_NAME ? ss.getSheetByName(CONFIG.SHEET_NAME) : ss.getSheets()[0];
+  if (!sheet) throw new Error('Лист "' + CONFIG.SHEET_NAME + '" не найден');
 
   var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return; // no data rows yet
+  if (values.length < 2) return; // ещё нет строк с данными
 
   var headers = values[0];
   var col = {};
@@ -60,26 +61,22 @@ function checkForNewLeads() {
 
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
-    if (row[statusCol]) continue; // already processed
+    if (row[statusCol]) continue; // уже обработана
 
     try {
       var lead = {
         fullName: col.fullName > -1 ? row[col.fullName] : '',
-        email: col.email > -1 ? row[col.email] : '',
         phone: col.phone > -1 ? row[col.phone] : '',
         formName: col.formName > -1 ? row[col.formName] : '',
+        campaignName: col.campaignName > -1 ? row[col.campaignName] : '',
+        adName: col.adName > -1 ? row[col.adName] : '',
         createdTime: col.createdTime > -1 ? row[col.createdTime] : ''
       };
 
-      if (!lead.fullName && !lead.email && !lead.phone) continue; // empty row
+      if (!lead.fullName && !lead.phone) continue; // пустая строка
 
-      var recipient = CONFIG.CLIENT_MAP[lead.formName] || CONFIG.FALLBACK_EMAIL;
-      var subject = CONFIG.SUBJECT_PREFIX + (lead.formName || 'Instant Form');
-      var body = buildBody(lead);
-
-      recipient.split(',').forEach(function (to) {
-        GmailApp.sendEmail(to.trim(), subject, body);
-      });
+      var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || lead.formName || 'Instant Form');
+      GmailApp.sendEmail(CONFIG.RECIPIENT, subject, buildBody(lead));
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
     } catch (err) {
@@ -91,10 +88,12 @@ function checkForNewLeads() {
 function buildBody(lead) {
   var lines = [
     'Имя: ' + lead.fullName,
-    'Email: ' + lead.email,
     'Телефон: ' + lead.phone,
+    '',
     'Форма: ' + lead.formName,
-    'Время лида: ' + lead.createdTime,
+    'Кампания: ' + lead.campaignName,
+    'Объявление: ' + lead.adName,
+    'Время заявки: ' + lead.createdTime,
     '',
     '— Отправлено автоматически из Google Sheets'
   ];
