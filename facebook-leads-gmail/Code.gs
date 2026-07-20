@@ -23,9 +23,6 @@ var CONFIG = {
   COLUMNS: {
     fullName: 'vollständiger_name',
     phone: 'telefonnummer',
-    formName: 'form_name',
-    campaignName: 'campaign_name',
-    adName: 'ad_name',
     createdTime: 'created_time'
   },
 
@@ -67,15 +64,12 @@ function checkForNewLeads() {
       var lead = {
         fullName: col.fullName > -1 ? row[col.fullName] : '',
         phone: col.phone > -1 ? row[col.phone] : '',
-        formName: col.formName > -1 ? row[col.formName] : '',
-        campaignName: col.campaignName > -1 ? row[col.campaignName] : '',
-        adName: col.adName > -1 ? row[col.adName] : '',
         createdTime: col.createdTime > -1 ? row[col.createdTime] : ''
       };
 
       if (!lead.fullName && !lead.phone) continue; // пустая строка
 
-      var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || lead.formName || 'Instant Form');
+      var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || 'Instant Form');
       GmailApp.sendEmail(CONFIG.RECIPIENT, subject, buildBody(lead));
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
@@ -88,14 +82,8 @@ function checkForNewLeads() {
 function buildBody(lead) {
   var lines = [
     'Имя: ' + lead.fullName,
-    'Телефон: ' + lead.phone,
-    '',
-    'Форма: ' + lead.formName,
-    'Кампания: ' + lead.campaignName,
-    'Объявление: ' + lead.adName,
-    'Время заявки: ' + lead.createdTime,
-    '',
-    '— Отправлено автоматически из Google Sheets'
+    'Номер телефона: ' + lead.phone,
+    'Время создания: ' + lead.createdTime
   ];
   return lines.join('\n');
 }
