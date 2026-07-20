@@ -32,6 +32,9 @@ var CONFIG = {
   // Copy of every email (to monitor that the lead flow hasn't stopped).
   CC: 'ak@babymarketing.ru',
 
+  // Display name shown in the "From" field.
+  SENDER_NAME: 'anton kononov',
+
   // Marker column so the same lead isn't sent twice.
   STATUS_COLUMN: 'Sent',
 
@@ -71,7 +74,9 @@ function checkForNewLeads() {
 
       if (!lead.fullName && !lead.phone) continue; // empty row
 
-      var options = CONFIG.CC ? { cc: CONFIG.CC } : {};
+      var options = {};
+      if (CONFIG.CC) options.cc = CONFIG.CC;
+      if (CONFIG.SENDER_NAME) options.name = CONFIG.SENDER_NAME;
       GmailApp.sendEmail(CONFIG.RECIPIENT, CONFIG.SUBJECT, buildBody(lead), options);
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
