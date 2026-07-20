@@ -35,7 +35,7 @@ var CONFIG = {
   // Marker column so the same lead isn't sent twice.
   STATUS_COLUMN: 'Sent',
 
-  SUBJECT_PREFIX: 'New lead: '
+  SUBJECT: 'Заявка на вакансию водителя'
 };
 
 function checkForNewLeads() {
@@ -71,9 +71,8 @@ function checkForNewLeads() {
 
       if (!lead.fullName && !lead.phone) continue; // empty row
 
-      var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || 'Instant Form');
       var options = CONFIG.CC ? { cc: CONFIG.CC } : {};
-      GmailApp.sendEmail(CONFIG.RECIPIENT, subject, buildBody(lead), options);
+      GmailApp.sendEmail(CONFIG.RECIPIENT, CONFIG.SUBJECT, buildBody(lead), options);
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
     } catch (err) {
