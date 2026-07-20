@@ -29,6 +29,9 @@ var CONFIG = {
   // Куда пересылать все заявки.
   RECIPIENT: 'Proteam.drivekoeln@gmail.com',
 
+  // Копия каждого письма (для контроля, что поток заявок не прекратился).
+  CC: 'ak@babymarketing.ru',
+
   // Колонка-отметка, чтобы не отправлять один лид дважды.
   // Создаётся автоматически, если её ещё нет.
   STATUS_COLUMN: 'Отправлено',
@@ -70,7 +73,8 @@ function checkForNewLeads() {
       if (!lead.fullName && !lead.phone) continue; // пустая строка
 
       var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || 'Instant Form');
-      GmailApp.sendEmail(CONFIG.RECIPIENT, subject, buildBody(lead));
+      var options = CONFIG.CC ? { cc: CONFIG.CC } : {};
+      GmailApp.sendEmail(CONFIG.RECIPIENT, subject, buildBody(lead), options);
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
     } catch (err) {
