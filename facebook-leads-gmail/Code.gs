@@ -1,51 +1,50 @@
 /**
  * Facebook Leads (Instant Form) -> Google Sheets -> Gmail forwarder.
  *
- * Настроено под таблицу с колонками:
+ * Sheet columns:
  * id, created_time, ad_id, ad_name, adset_id, adset_name, campaign_id,
  * campaign_name, form_id, form_name, is_organic, platform,
  * vollständiger_name, telefonnummer, lead_status
  *
- * Установка:
- * 1. Откройте вашу таблицу с лидами.
- * 2. Расширения -> Apps Script, вставьте этот код вместо стандартного.
- * 3. Запустите checkForNewLeads вручную один раз (кнопка Run) и выдайте
- *    доступ к Gmail/Sheets под аккаунтом anton.kon.47@gmail.com.
- * 4. Иконка часов (Triggers) -> Add trigger -> checkForNewLeads ->
+ * Setup:
+ * 1. Open the Google Sheet with the leads.
+ * 2. Extensions -> Apps Script, paste this code instead of the default.
+ * 3. Run checkForNewLeads once (Run button) and grant Gmail/Sheets access
+ *    with the anton.kon.47@gmail.com account.
+ * 4. Clock icon (Triggers) -> Add trigger -> checkForNewLeads ->
  *    Time-driven -> Minutes timer -> Every 10 minutes.
  */
 
 var CONFIG = {
-  // Имя листа с лидами. Если оставить пустым '' — берётся первый лист.
-  SHEET_NAME: '',
+  // Sheet/tab name that holds the leads. Empty '' = first sheet.
+  SHEET_NAME: 'list',
 
-  // Заголовки колонок ровно как в первой строке таблицы.
+  // Header names exactly as in row 1 of the sheet.
   COLUMNS: {
     fullName: 'vollständiger_name',
     phone: 'telefonnummer',
     createdTime: 'created_time'
   },
 
-  // Куда пересылать все заявки.
+  // Where all leads are forwarded.
   RECIPIENT: 'Proteam.drivekoeln@gmail.com',
 
-  // Копия каждого письма (для контроля, что поток заявок не прекратился).
+  // Copy of every email (to monitor that the lead flow hasn't stopped).
   CC: 'ak@babymarketing.ru',
 
-  // Колонка-отметка, чтобы не отправлять один лид дважды.
-  // Создаётся автоматически, если её ещё нет.
-  STATUS_COLUMN: 'Отправлено',
+  // Marker column so the same lead isn't sent twice.
+  STATUS_COLUMN: 'Sent',
 
-  SUBJECT_PREFIX: 'Новая заявка: '
+  SUBJECT_PREFIX: 'New lead: '
 };
 
 function checkForNewLeads() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = CONFIG.SHEET_NAME ? ss.getSheetByName(CONFIG.SHEET_NAME) : ss.getSheets()[0];
-  if (!sheet) throw new Error('Лист "' + CONFIG.SHEET_NAME + '" не найден');
+  if (!sheet) throw new Error('Sheet "' + CONFIG.SHEET_NAME + '" not found');
 
   var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return; // ещё нет строк с данными
+  if (values.length < 2) return; // no data rows yet
 
   var headers = values[0];
   var col = {};
@@ -61,7 +60,7 @@ function checkForNewLeads() {
 
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
-    if (row[statusCol]) continue; // уже обработана
+    if (row[statusCol]) continue; // already processed
 
     try {
       var lead = {
@@ -70,7 +69,7 @@ function checkForNewLeads() {
         createdTime: col.createdTime > -1 ? row[col.createdTime] : ''
       };
 
-      if (!lead.fullName && !lead.phone) continue; // пустая строка
+      if (!lead.fullName && !lead.phone) continue; // empty row
 
       var subject = CONFIG.SUBJECT_PREFIX + (lead.fullName || 'Instant Form');
       var options = CONFIG.CC ? { cc: CONFIG.CC } : {};
@@ -78,16 +77,16 @@ function checkForNewLeads() {
 
       sheet.getRange(r + 1, statusCol + 1).setValue(new Date());
     } catch (err) {
-      sheet.getRange(r + 1, statusCol + 1).setValue('ОШИБКА: ' + err.message);
+      sheet.getRange(r + 1, statusCol + 1).setValue('ERROR: ' + err.message);
     }
   }
 }
 
 function buildBody(lead) {
   var lines = [
-    'Имя: ' + lead.fullName,
-    'Номер телефона: ' + lead.phone,
-    'Время создания: ' + lead.createdTime
+    'Name: ' + lead.fullName,
+    'Phone number: ' + lead.phone,
+    'Created time: ' + lead.createdTime
   ];
   return lines.join('\n');
 }
