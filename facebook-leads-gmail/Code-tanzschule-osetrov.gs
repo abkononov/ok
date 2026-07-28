@@ -17,11 +17,16 @@ var CONFIG = {
   SHEET_NAMES: [],
 
   // Header names exactly as in row 1 of the sheet.
+  // A field may list several candidate headers (forms word the question
+  // differently across tabs) — the first one found in the tab is used.
   COLUMNS: {
     fullName: 'full_name',
     phone: 'phone_number',
     createdTime: 'created_time',
-    livesNearCologne: 'wohnen_sie_in_oder_bei_köln?_unsere_schule_befindet_sich_in_bergisch_gladbach_in_der_nähe_von_köln._wenn_sie_weit_weg_wohnen,_senden_sie_uns_dieses_formular_nicht_zu.'
+    livesNearCologne: [
+      'wie_weit_wohnt_ihr_von_bergisch_gladbach_entfernt?',
+      'wohnen_sie_in_oder_bei_köln?_unsere_schule_befindet_sich_in_bergisch_gladbach_in_der_nähe_von_köln._wenn_sie_weit_weg_wohnen,_senden_sie_uns_dieses_formular_nicht_zu.'
+    ]
   },
 
   // Where all leads are forwarded.
@@ -59,7 +64,13 @@ function processSheet(sheet) {
   var headers = values[0];
   var col = {};
   Object.keys(CONFIG.COLUMNS).forEach(function (key) {
-    col[key] = headers.indexOf(CONFIG.COLUMNS[key]);
+    var names = CONFIG.COLUMNS[key];
+    if (!Array.isArray(names)) names = [names];
+    col[key] = -1;
+    for (var i = 0; i < names.length; i++) {
+      var idx = headers.indexOf(names[i]);
+      if (idx > -1) { col[key] = idx; break; }
+    }
   });
 
   // Skip tabs that don't have the expected lead columns.
