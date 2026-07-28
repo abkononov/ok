@@ -12,8 +12,9 @@
  */
 
 var CONFIG = {
-  // Sheet/tab name that holds the leads. Empty '' = first sheet.
-  SHEET_NAME: 'list',
+  // Tabs to scan for leads. Empty list [] = every tab in the spreadsheet.
+  // Both forms live in separate tabs with identical columns.
+  SHEET_NAMES: [],
 
   // Header names exactly as in row 1 of the sheet.
   COLUMNS: {
@@ -40,9 +41,18 @@ var CONFIG = {
 
 function checkForNewLeads() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = CONFIG.SHEET_NAME ? ss.getSheetByName(CONFIG.SHEET_NAME) : ss.getSheets()[0];
-  if (!sheet) throw new Error('Sheet "' + CONFIG.SHEET_NAME + '" not found');
+  var sheets = CONFIG.SHEET_NAMES.length
+    ? CONFIG.SHEET_NAMES.map(function (n) {
+        var s = ss.getSheetByName(n);
+        if (!s) throw new Error('Sheet "' + n + '" not found');
+        return s;
+      })
+    : ss.getSheets();
 
+  sheets.forEach(processSheet);
+}
+
+function processSheet(sheet) {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return; // no data rows yet
 
@@ -51,6 +61,9 @@ function checkForNewLeads() {
   Object.keys(CONFIG.COLUMNS).forEach(function (key) {
     col[key] = headers.indexOf(CONFIG.COLUMNS[key]);
   });
+
+  // Skip tabs that don't have the expected lead columns.
+  if (col.fullName === -1 && col.phone === -1) return;
 
   var statusCol = headers.indexOf(CONFIG.STATUS_COLUMN);
   if (statusCol === -1) {
