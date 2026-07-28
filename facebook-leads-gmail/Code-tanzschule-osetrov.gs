@@ -41,7 +41,12 @@ var CONFIG = {
   // Marker column so the same lead isn't sent twice.
   STATUS_COLUMN: 'Sent',
 
-  SUBJECT: 'Instagram lead'
+  SUBJECT: 'Instagram lead',
+
+  // Watchdog: alert this address if no new lead lands within STALE_HOURS.
+  // Catches the Facebook -> Sheets integration silently breaking.
+  ALERT_EMAIL: 'ak@babymarketing.ru',
+  STALE_HOURS: 24
 };
 
 function checkForNewLeads() {
@@ -116,4 +121,57 @@ function buildBody(lead) {
     'Wohnen Sie in oder bei Köln?: ' + lead.livesNearCologne
   ];
   return lines.join('\n');
+}
+
+/**
+ * Watchdog. Put it on its own hourly time-driven trigger.
+ * Emails ALERT_EMAIL once when the newest lead across all tabs becomes
+ * older than STALE_HOURS (Facebook stopped writing to the sheet), and
+ * once more when leads start arriving again.
+ */
+function checkLeadFlow() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = CONFIG.SHEET_NAMES.length
+    ? CONFIG.SHEET_NAMES.map(function (n) { return ss.getSheetByName(n); })
+    : ss.getSheets();
+
+  var newest = 0;
+  sheets.forEach(function (sheet) {
+    if (!sheet) return;
+    var values = sheet.getDataRange().getValues();
+    if (values.length < 2) return;
+    var timeCol = values[0].indexOf(CONFIG.COLUMNS.createdTime);
+    if (timeCol === -1) return;
+    for (var r = 1; r < values.length; r++) {
+      var d = toDate(values[r][timeCol]);
+      if (d && d.getTime() > newest) newest = d.getTime();
+    }
+  });
+  if (!newest) return; // no leads yet — can't judge
+
+  var ageHours = (Date.now() - newest) / 3600000;
+  var props = PropertiesService.getScriptProperties();
+  var alerted = props.getProperty('staleAlerted') === '1';
+
+  if (ageHours > CONFIG.STALE_HOURS && !alerted) {
+    GmailApp.sendEmail(CONFIG.ALERT_EMAIL,
+      '⚠️ Лиды перестали приходить: ' + ss.getName(),
+      'Последний лид в таблице "' + ss.getName() + '" был ' +
+      Math.round(ageHours) + ' ч назад.\n' +
+      'Похоже, интеграция Facebook → Google Sheets отвалилась ' +
+      '(например, после смены формы). Проверьте и переподключите её.');
+    props.setProperty('staleAlerted', '1');
+  } else if (ageHours <= CONFIG.STALE_HOURS && alerted) {
+    GmailApp.sendEmail(CONFIG.ALERT_EMAIL,
+      '✅ Лиды снова приходят: ' + ss.getName(),
+      'В таблицу "' + ss.getName() + '" снова падают свежие лиды.');
+    props.setProperty('staleAlerted', '0');
+  }
+}
+
+function toDate(v) {
+  if (v instanceof Date) return v;
+  if (!v) return null;
+  var d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
 }
